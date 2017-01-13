@@ -1,0 +1,31 @@
+extends layout
+
+block content
+  form(action='/postQuestion', method= 'post')
+    input(id='id', type='hidden', value= questionId, name= 'id')
+    label Question:
+      <br>
+      input(id='question', type='text', value= questionVal, name='question')
+      <br><br>
+    label answerA:
+      <br>
+      input(id='answer1', type='text', value= answerAVal, name='answerA')
+      <br><br>
+    label answerB:
+      <br>
+      input(id='answer2', type='text', value= answerBVal, name='answerB')
+      <br><br>
+    label answerC:
+      <br>
+      input(id='answer3', type='text', value= answerCVal, name='answerC')
+      <br><br>
+    label answerD:
+      <br>
+      input(id='answer4', type='text', value= answerDVal, name='answerD')
+      <br><br>
+    label correct answer:
+      <br>
+      input(id='correct', type='text', value= correctVal, name='correct')
+      <br><br>
+
+    input(type= 'submit', value='Save')

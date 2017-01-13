@@ -1,0 +1,13 @@
+extends layout
+
+block content
+  a(href= "/getQuestionForm")= "add new Question item"
+  <br><br>
+  each q in questions
+    li= q.question + "  "
+      a(href= "/deleteQuestion?id="+q._id)= "delete" + "  "
+        a(href= "/getQuestionForm?id="+q._id)= "edit"
+
+  a(href= route)= link_txt
+block foot
+  p= "ŁUkasz Międła 2017"
