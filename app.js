@@ -371,16 +371,34 @@ app.get('/getQuestionForm', function(req, res){
       getQuestion(db, questionId, function(question){
         // console.log(question);
         //console.log('getQuestionCallback, question._id: '+question._id);
-        res.render('questionForm', {
-          questionId: question._id,
-          questionVal: question.question,
-          answerAVal: question.answers[0].a,
-          answerBVal: question.answers[1].b,
-          answerCVal: question.answers[2].c,
-          answerDVal: question.answers[3].d,
-          correctVal: question.correct
-        });
-      });
+        if(question.answers != undefined){
+          res.render('questionForm', {
+            questionId: question._id,
+            questionVal: question.question,
+            answerAVal: question.answers[0].a,
+            answerBVal: question.answers[1].b,
+            answerCVal: question.answers[2].c,
+            answerDVal: question.answers[3].d,
+            correctVal: question.correct
+          });
+          db.close();
+        }else{
+          getQuestions(db, function(questionArray){
+            res.render('questionForm', {
+              questionId: question._id,
+              questionVal: question.question
+            });
+            // res.render('questions', {
+            //   questions: questionArray,
+            //   title: "Questions",
+            //   header: "Get Questions",
+            //   route: "/",
+            //   link_txt: "home",
+            //   errorMsg: "Pytanie " + question.question + " nie ma odpowiedzi!"
+            // });
+          });
+        }
+      }, false);
     });
   }else{
     res.render('questionForm');
@@ -390,7 +408,6 @@ app.get('/getQuestionForm', function(req, res){
 app.post('/postQuestion', function(req, res){
   console.log(req.body);
   var questionId = req.body.id;
-  //console.log('questionId: '+questionId);
   var questionTxt = req.body.question;
   var correctAns = req.body.correct;
   var answersTab = [
@@ -405,6 +422,26 @@ app.post('/postQuestion', function(req, res){
     correct: correctAns.toLowerCase(),
     answers: answersTab
   };
+
+  if(questionTxt == undefined || correctAns == undefined || answersTab == undefined){
+    console.log('err1');
+    res.render('questionForm', {
+      errorMsg: "Prosze poprawnie wypelnic wszystkie pola!"
+    });
+    return;
+  }else if(req.body.answerA == undefined || req.body.answerB == undefined || req.body.answerC == undefined || req.body.answerD == undefined){
+    console.log('err2');
+    res.render('questionForm', {
+      errorMsg: "Prosze wypelnic wszystkie odpowiedz!"
+    });
+    return;
+  }else if(document.correct == undefined || document.correct.length !== 1 || !document.correct.match(/[a-d]/i)){
+    console.log('err3, '+document.correct);
+    res.render('questionForm', {
+      errorMsg: "Prosze wpisac poprawna odpowiedz [a,b,c,d]!"
+    });
+    return;
+  }
 
   connectMongo(mongoUrl, function(db){
     var collection = db.collection('qa');
@@ -469,13 +506,15 @@ function getQuestions(db, callback){
   });
 }
 
-function getQuestion(db, id, callback){
+function getQuestion(db, id, callback, close=true){
   var collection = db.collection('qa');
   collection.findOne({_id: new mongoDb.ObjectID(id)}, function(err, question){
     if(err){
       console.log('error while get question: '+err);
     }else {
-      db.close();
+      if(close){
+        db.close();
+      }
       console.log(question);
       callback(question);
     }

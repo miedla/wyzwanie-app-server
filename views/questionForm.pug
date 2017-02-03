@@ -1,6 +1,6 @@
 extends layout
-
 block content
+  label= errorMsg
   form(action='/postQuestion', method= 'post')
     input(id='id', type='hidden', value= questionId, name= 'id')
     label Question:
