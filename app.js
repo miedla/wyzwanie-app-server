@@ -18,6 +18,7 @@ var unamesTab = [];
 var rooms = ['Lobby'];
 // var roomsObj = [{name: 'Lobby', users: [], game: false}];
 var roomsObj = [{name: 'Lobby', users: [], players: [], game: {active: false, usersQ: 0}}];
+var defaultQuestionGet = 10;
 
 io.sockets.on('connection', function(socket){
   console.log('connected socket: '+socket.id);
@@ -87,14 +88,26 @@ io.sockets.on('connection', function(socket){
 
   socket.on('adduser', function(username){
     console.log('username: '+username);
-    socket.username = username;
+    if(unamesTab.indexOf(username) == -1){
+      socket.username = username;
+      unamesTab.push(username);
+    }else{
+      var counter = 1;
+      for(i in unamesTab){
+        if(unamesTab[i].indexOf(username) != -1){
+          counter++;
+        }
+      }
+      socket.username = username + counter;
+      unamesTab.push(username);
+    }
     socket.room = 'Lobby';
     console.log("socket id: "+socket.id);
     usernames.push({name: username, isPlaying: false});
     socket.join('Lobby');
     addRoom(socket.room);
     addRoomUser(socket.room, socket.username);
-    updateUsernamesArray();
+    //updateUsernamesArray();
     console.log("unamesTab: "+unamesTab);
     socket.emit('updatechat', {from: 'SERVER', message: 'you have connected to Lobby'});
     //socket.broadcast.emit('updatechat', {from: 'SERVER', message: username + ' has connected'});
@@ -110,7 +123,8 @@ io.sockets.on('connection', function(socket){
     console.log("disconnect socketusername: "+socket.id);
     updateGameStateToRoomSockets(socket.room, socket.id, false);
     delete usernames[socket.username];
-    updateUsernamesArray();
+    //updateUsernamesArray();
+    unamesTab.splice(unamesTab.indexOf(socket.username), 1);
     //io.sockets.emit('updateusers', roomUsers);
     socket.broadcast.emit('updatechat', {from: 'SERVER', message: socket.username + ' has disconnected'});
     console.log("disconnect socketRoom: "+socket.room);
@@ -129,12 +143,10 @@ io.sockets.on('connection', function(socket){
     if(rooms.indexOf(socket.room) != -1){
       emitUsersToRoomSockets(socket.room);
     }
-    // socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
   });
 
   socket.on('create', function(room){
     rooms.push(room);
-    // roomsObj.push({name: room, users: [], game: false});
     roomsObj.push({name: room, users: [], players: [], game: {active: false, usersQ: 0}});
     console.log("create room");
     io.sockets.emit('updaterooms', rooms, socket.room);
@@ -146,9 +158,9 @@ io.sockets.on('connection', function(socket){
     socket.leave(socket.room);
     socket.join(newroom);
     socket.emit('updatechat', { from: 'SERVER', message: 'you have connected to ' + newroom});
-    socket.broadcast.to(oldroom).emit('updatechat', { from: 'SERVER', message: socket.username + 'has left room' });
+    socket.broadcast.to(oldroom).emit('updatechat', { from: 'SERVER', message: socket.username + ' has left room' });
     socket.room = newroom;
-    socket.broadcast.to(newroom).emit('updatechat', { from: 'SERVER', message: socket.username + 'has joined this room' });
+    socket.broadcast.to(newroom).emit('updatechat', { from: 'SERVER', message: socket.username + ' has joined this room' });
     deleteRoomUser(oldroom, socket.username);
     addRoomUser(newroom, socket.username);
     emitUsersToRoomSockets(newroom);
@@ -253,12 +265,11 @@ function removePlayerFromRoom(playerId, room, removeAll=false){
   }
 }
 
-function updateUsernamesArray(){
-  unamesTab = [];
-  for(i in usernames){
-    unamesTab.push(usernames[i]);
-  }
-}
+// function updateUsernamesArray(){
+//   for(i in usernames){
+//     unamesTab.push(usernames[i].name);
+//   }
+// }
 
 function getRoomUsers(roomName){
   var roomUsers = [];
@@ -462,10 +473,30 @@ app.get('/getQuestions.json', function(req, res){
   connectMongo(mongoUrl, function(db){
     getQuestions(db, function(questionArray){
       // console.log(questionArray);
-      res.json(questionArray);
+      if(defaultQuestionGet <= questionArray.length){
+        var qarr = getRandomArrayElements(questionArray, defaultQuestionGet);
+        res.json(qarr);
+      }else{
+        var qarr = getRandomArrayElements(questionArray, questionArray.length);
+        res.json(qarr);
+      }
+      //res.json(questionArray);
     });
   });
 });
+
+function getRandomArrayElements(arr, n){
+  var result = new Array(n);
+  var length = arr.length;
+  var taken = new Array(length);
+
+  while (n--) {
+    var x = Math.floor(Math.random() * length);
+    result[n] = arr[x in taken ? taken[x] : x];
+    taken[x] = --length;
+  }
+  return result;
+}
 
 app.get('/getQuestionForm', function(req, res){
   var questionId = req.query.id;
@@ -473,8 +504,6 @@ app.get('/getQuestionForm', function(req, res){
   if(questionId !== undefined){
     connectMongo(mongoUrl, function(db){
       getQuestion(db, questionId, function(question){
-        // console.log(question);
-        //console.log('getQuestionCallback, question._id: '+question._id);
         if(question.answers != undefined){
           res.render('questionForm', {
             questionId: question._id,
@@ -492,14 +521,6 @@ app.get('/getQuestionForm', function(req, res){
               questionId: question._id,
               questionVal: question.question
             });
-            // res.render('questions', {
-            //   questions: questionArray,
-            //   title: "Questions",
-            //   header: "Get Questions",
-            //   route: "/",
-            //   link_txt: "home",
-            //   errorMsg: "Pytanie " + question.question + " nie ma odpowiedzi!"
-            // });
           });
         }
       }, false);
