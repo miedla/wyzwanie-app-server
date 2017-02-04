@@ -80,6 +80,7 @@ io.sockets.on('connection', function(socket){
         usernames[i].isPlaying = false;
       }
     }
+    emitPlayersScore(socket.room);
     updateGameStateToRoomSockets(socket.room, socket.id, false);
     removePlayerFromRoom(socket.id, socket.room);
   });
@@ -206,7 +207,6 @@ function emitPlayersScore(roomName){
       console.log('emitPlayersScore, error: '+error);
     }
   }
-
 }
 
 function setPlayerScore(playerId, score, room){
