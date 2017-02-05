@@ -13,11 +13,11 @@ var __dirname = 'public';
 server.listen(8000);
 console.log('socket listening on 8000');
 
-var usernames = [];//{};
+//var usernames = [];//{};
 var unamesTab = [];
 var rooms = ['Lobby'];
 // var roomsObj = [{name: 'Lobby', users: [], game: false}];
-var roomsObj = [{name: 'Lobby', users: [], players: [], game: {active: false, usersQ: 0}}];
+var roomsObj = [{name: 'Lobby', users: [], players: [], game: {active: false, usersQ: 0, isQuizStarted: false}}];
 var defaultQuestionGet = 10;
 
 io.sockets.on('connection', function(socket){
@@ -29,11 +29,6 @@ io.sockets.on('connection', function(socket){
 
   socket.on('gamestarted', function(data){
     // console.log("gamestarted, data: "+data);
-    for(i in usernames){
-      if(usernames[i].name == socket.username){
-        usernames[i].isPlaying = true;
-      }
-    }
     addPlayerToRoom(socket.id, socket.username, socket.room);
     updateGameStateToRoomSockets(socket.room, socket.id, true);
     emitInvitationToRoomSockets(socket.room, socket.username, socket.id, data);
@@ -42,48 +37,34 @@ io.sockets.on('connection', function(socket){
   socket.on('requiredplayersforquiz', function(){
     console.log('requiredplayersforquiz');
     emitQuizStarted(socket.room, socket.id);
+    activateQuizForRoom(socket.room);
+    updateGameStateToRoomSockets(socket.room, socket.id);
   });
 
   socket.on('gamefinished', function(data){
-    for(i in usernames){
-      if(usernames[i].name == socket.username){
-        usernames[i].isPlaying = false;
-      }
-    }
     for(i in roomsObj){
       if(roomsObj[i].name == socket.room){
         roomsObj[i].game.active = false;
         //roomsObj[i].game.usersQ = 1;
       }
     }
+    deactivateQuizForRoom(socket.room);
     emitQuizFinished(socket.id, socket.room);
     removePlayerFromRoom(socket.id, socket.room, true);
     updateGameStateToRoomSockets(socket.room, socket.id, false);
   });
 
   socket.on("playerjoinedgame", function(){
-    console.log("playerjoinedgame, usernames: "+usernames);
-
-    for(i in usernames){
-      if(usernames[i].name == socket.username){
-        usernames[i].isPlaying = true;
-      }
-    }
-
+    // console.log("playerjoinedgame, usernames: "+usernames);
     addPlayerToRoom(socket.id, socket.username, socket.room);
     updateGameStateToRoomSockets(socket.room, socket.id, true);
   });
 
   socket.on("playerexitedgame", function(){
     console.log("playerexitedgame, socket.room: "+socket.room);
-    for(i in usernames){
-      if(usernames[i].name == socket.username){
-        usernames[i].isPlaying = false;
-      }
-    }
+    removePlayerFromRoom(socket.id, socket.room);
     emitPlayersScore(socket.room);
     updateGameStateToRoomSockets(socket.room, socket.id, false);
-    removePlayerFromRoom(socket.id, socket.room);
   });
 
   socket.on('adduser', function(username){
@@ -103,7 +84,7 @@ io.sockets.on('connection', function(socket){
     }
     socket.room = 'Lobby';
     console.log("socket id: "+socket.id);
-    usernames.push({name: username, isPlaying: false});
+    // usernames.push({name: username, isPlaying: false});
     socket.join('Lobby');
     addRoom(socket.room);
     addRoomUser(socket.room, socket.username);
@@ -122,7 +103,7 @@ io.sockets.on('connection', function(socket){
     console.log("disconnect socketusername: "+socket.room);
     console.log("disconnect socketusername: "+socket.id);
     updateGameStateToRoomSockets(socket.room, socket.id, false);
-    delete usernames[socket.username];
+    // delete usernames[socket.username];
     //updateUsernamesArray();
     unamesTab.splice(unamesTab.indexOf(socket.username), 1);
     //io.sockets.emit('updateusers', roomUsers);
@@ -135,11 +116,11 @@ io.sockets.on('connection', function(socket){
       io.sockets.emit('updaterooms', rooms, socket.room);
     }
     removePlayerFromRoom(socket.id, socket.room);
-    for(i in usernames){
-      if(usernames[i].name == socket.username){
-        usernames[i].isPlaying = false;
-      }
-    }
+    // for(i in usernames){
+    //   if(usernames[i].name == socket.username){
+    //     usernames[i].isPlaying = false;
+    //   }
+    // }
     if(rooms.indexOf(socket.room) != -1){
       emitUsersToRoomSockets(socket.room);
     }
@@ -147,7 +128,7 @@ io.sockets.on('connection', function(socket){
 
   socket.on('create', function(room){
     rooms.push(room);
-    roomsObj.push({name: room, users: [], players: [], game: {active: false, usersQ: 0}});
+    roomsObj.push({name: room, users: [], players: [], game: {active: false, usersQ: 0, isQuizStarted: false}});
     console.log("create room");
     io.sockets.emit('updaterooms', rooms, socket.room);
   });
@@ -191,6 +172,7 @@ function emitQuizFinished(hostId, room) {
           clientSocket.emit('quizfinished');
         }
       }
+      //removePlayerFromRoom(socket.id, socket.room, true);
       return;
     }
   }
@@ -202,10 +184,13 @@ function emitPlayersScore(roomName){
   for(i in roomsObj){
     if(roomsObj[i].name = roomName){
       for(pid in roomsObj[i].players){
-        var client = io.sockets.connected[pid];
-        playersSockets.push(client);
-        var playerObj = roomsObj[i].players[pid];
-        playerScoresArray.push({name: playerObj.player_name, score: playerObj.player_score});
+        if(roomsObj[i].players[pid] != null){
+          var client = io.sockets.connected[pid];
+          console.log('emitPlayersScore, roomsObj[i].players[pid]: '+roomsObj[i].players[pid]);
+          playersSockets.push(client);
+          var playerObj = roomsObj[i].players[pid];
+          playerScoresArray.push({name: playerObj.player_name, score: playerObj.player_score});
+        }
       }
       break;
     }
@@ -250,26 +235,27 @@ function addPlayerToRoom(playerId, playerName, room){
 }
 
 function removePlayerFromRoom(playerId, room, removeAll=false){
-  // console.log('addPlayerToRoom room: '+room);
-  for(i in roomsObj){
+  console.log('removePlayerFromRoom room: '+room);
+  roomsObj.indexOf()
+  for(var i=0; i< roomsObj.length; i++){
     if(roomsObj[i].name == room){
-      if(!removeAll){
-        roomsObj[i].game.active = true;
-        roomsObj[i].players.splice(playerId, 1);
-        console.log('roomsObj[i].players: '+roomsObj[i].players);
+      if(removeAll === false){
+        roomsObj[i].players.splice(playerId, 1);//NIE USUWA!
+        // roomsObj[i].players[playerId].player_name = "";
+        // roomsObj[i].players[playerId].player_score = 0;
+        console.log('player deleted!, p: '+playerId);
+        console.log('roomsObj[i].players[playerId]: '+roomsObj[i].players[playerId].player_score);
         return;
-      }else{
-        roomsObj[i].players = [];
       }
+    }
+    else{
+      console.log('removeAll players from room!');
+      roomsObj[i].game.active = false;
+      roomsObj[i].players.splice(0, roomsObj[i].players.length);
+      return;
     }
   }
 }
-
-// function updateUsernamesArray(){
-//   for(i in usernames){
-//     unamesTab.push(usernames[i].name);
-//   }
-// }
 
 function getRoomUsers(roomName){
   var roomUsers = [];
@@ -286,7 +272,7 @@ function addRoom(roomName){
     console.log("addRoom() roomsObj.length < 1");
     rooms.push(roomName);
     // roomsObj.push({name: roomName, users: [], game: false});
-    roomsObj.push({name: roomName, users: [], players: [], game: {active: false, usersQ: 0}});
+    roomsObj.push({name: roomName, users: [], players: [], game: {active: false, usersQ: 0, isQuizStarted: false}});
   }else{
     for(i in roomsObj){
       if(roomsObj[i].name == roomName){
@@ -295,7 +281,7 @@ function addRoom(roomName){
       }
       rooms.push(roomName);
       // roomsObj.push({name: roomName, users: [], game: false});
-      roomsObj.push({name: roomName, users: [], players: [], game: {active: false, usersQ: 0}});
+      roomsObj.push({name: roomName, users: [], players: [], game: {active: false, usersQ: 0, isQuizStarted: false}});
       console.log("addRoom, roomsObj: "+roomsObj);
     }
   }
@@ -342,6 +328,7 @@ function emitMessageToRoomSockets(roomName, username, msg, socketId){
 }
 
 function emitInvitationToRoomSockets(roomName, username, socketId, data){
+  console.log('emit invitation');
   var clients = io.sockets.adapter.rooms[roomName].sockets;
   for(clientId in clients){
     var clientSocket = io.sockets.connected[clientId];
@@ -365,6 +352,23 @@ function emitQuizStarted(roomName, hostId){
           client.emit('quizstarted');
         }
       }
+      emitPlayersScore(roomName);
+    }
+  }
+}
+
+function activateQuizForRoom(roomName){
+  for(i in roomsObj){
+    if(roomsObj[i].name == roomName){
+      roomsObj[i].game.isQuizStarted = true;
+    }
+  }
+}
+
+function deactivateQuizForRoom(roomName){
+  for(i in roomsObj){
+    if(roomsObj[i].name == roomName){
+      roomsObj[i].game.isQuizStarted = false;
     }
   }
 }
@@ -394,12 +398,16 @@ function updateGameStateToRoomSockets(roomName, socketId, type){
         }
       }
       if(roomsObj[i].game.usersQ < 1){
+        removePlayerFromRoom(null, roomName, true);
         roomsObj[i].game.active = false;
         roomsObj[i].game.usersQ = 0;
+        roomsObj[i].game.isQuizStarted = false;
       }
 
       console.log('roomsObj[i].game.usersQ: '+roomsObj[i].game.usersQ);
       gameRoom = roomsObj[i].game;
+
+      break;
     }
   }
 
