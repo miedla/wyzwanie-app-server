@@ -6,9 +6,12 @@ var io = require('socket.io').listen(server);
 var mongoDb = require('mongodb');
 var mongoClient = require('mongodb').MongoClient;
 var objectId = require('mongodb').ObjectID;
-var mongoUrl = 'mongodb://localhost:27017/local';
+// var mongoUrl = 'mongodb://localhost:27017/local';
+var mongoUrl = 'mongodb://miedla:lukasz17@ds143449.mlab.com:43449/wyzwanie';
 var bodyParser = require('body-parser');
 var __dirname = 'public';
+
+// var mongoUrl = 'mongodb://miedla:lukasz17@ds143449.mlab.com:43449/wyzwanie'//'mongodb://miedla:lukasz17@ds041154.mlab.com:41154/tzt-mongodb';
 
 server.listen(8000);
 console.log('socket listening on 8000');

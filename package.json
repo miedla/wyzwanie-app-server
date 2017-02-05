@@ -1,10 +1,11 @@
 {
   "name": "lukasz",
   "version": "0.0.0",
-  "description": "sprawozdanie redis",
-  "main": "index.js",
+  "description": "projekt wyzwanie",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
   },
   "author": "Lukasz Miedla",
   "license": "ISC",
