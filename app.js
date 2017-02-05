@@ -246,8 +246,8 @@ function removePlayerFromRoom(playerId, room, removeAll=false){
         roomsObj[i].players.splice(playerId, 1);//NIE USUWA!
         // roomsObj[i].players[playerId].player_name = "";
         // roomsObj[i].players[playerId].player_score = 0;
-        console.log('player deleted!, p: '+playerId);
-        console.log('roomsObj[i].players[playerId]: '+roomsObj[i].players[playerId].player_score);
+        // console.log('player deleted!, p: '+playerId);
+        // console.log('roomsObj[i].players[playerId]: '+roomsObj[i].players[playerId].player_score);
         return;
       }
     }
